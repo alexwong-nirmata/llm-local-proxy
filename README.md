@@ -1,19 +1,17 @@
-# Chat Service
+# LLM Local Proxy
 
-A simple Node.js Express service with a `/chat` endpoint for handling chat messages.
+A Node.js reverse proxy server that forwards chat requests to a local copilot service running on port 8443.
 
 ## Features
 
-- ✅ POST `/chat` endpoint for sending messages (simulates LLM with 1-minute delay)
-- ✅ WebSocket streaming for "in progress" data (The Scientist - Coldplay lyrics)
+- ✅ POST `/chat` endpoint that proxies to local copilot service
 - ✅ GET `/health` endpoint for health checks
 - ✅ CORS enabled for cross-origin requests
 - ✅ Security headers with Helmet
 - ✅ Request logging with Morgan
 - ✅ JSON body parsing
 - ✅ Error handling middleware
-- ✅ Input validation
-- ✅ Static file serving for test page
+- ✅ Static file serving
 
 ## Quick Start
 
@@ -37,13 +35,13 @@ npm start
 
 The server will start on port 3000 by default. You can change this by setting the `PORT` environment variable.
 
+**Note:** This server requires a copilot service to be running on `https://127.0.0.1:8443/copilot?chunked=true` for the `/chat` endpoint to work properly.
+
 ## API Endpoints
 
 ### POST /chat
 
-Send a chat message to the service. This endpoint simulates an LLM response with:
-1. **WebSocket streaming** of "in progress" data (The Scientist - Coldplay lyrics)
-2. **15-second delay** before final response (Never Let Me Down Again - Depeche Mode lyrics)
+Proxies chat requests to the local copilot service. This endpoint forwards the request body directly to `https://127.0.0.1:8443/copilot?chunked=true`.
 
 **Request Body:**
 ```json
@@ -54,29 +52,14 @@ Send a chat message to the service. This endpoint simulates an LLM response with
 }
 ```
 
-**Required Fields:**
-- `message` (string) - The chat message content
+**Response:** The response from the copilot service is forwarded directly back to the client, including:
+- Status code
+- Headers
+- Response body
 
-**Optional Fields:**
-- `userId` (string) - User identifier (defaults to "anonymous")
-- `timestamp` (string) - Message timestamp (defaults to current time)
-
-**WebSocket Events:**
-- `streaming` - Emitted every second with streaming data
-  - `type: 'in_progress'` - Contains lyrics from The Scientist
-  - `type: 'streaming_complete'` - Indicates streaming is finished
-
-**Final Response (after 15 seconds):**
-```json
-{
-  "id": "1704067200000",
-  "message": "Never Let Me Down Again - Depeche Mode\n\nI'm taking a ride with my best friend...",
-  "userId": "user123",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "status": "completed",
-  "streamingCompleted": true
-}
-```
+**Error Handling:**
+- If the copilot service is not running, returns a 500 error with connection details
+- All other errors are logged and returned as appropriate HTTP status codes
 
 ### GET /health
 
@@ -92,13 +75,10 @@ Health check endpoint.
 
 ## Usage Examples
 
-### Test Page
-Visit `http://localhost:3000/test.html` to see the LLM simulation in action with real-time streaming!
-
 ### Using curl
 
 ```bash
-# Send a simple message (will wait 15 seconds for response)
+# Send a chat message (proxied to copilot service)
 curl -X POST http://localhost:3000/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello from curl!"}'
@@ -112,22 +92,10 @@ curl -X POST http://localhost:3000/chat \
 curl http://localhost:3000/health
 ```
 
-### Using JavaScript (fetch + WebSocket)
+### Using JavaScript (fetch)
 
 ```javascript
-// Connect to WebSocket for streaming
-const socket = io('http://localhost:3000');
-
-// Listen for streaming data
-socket.on('streaming', (data) => {
-  if (data.type === 'in_progress') {
-    console.log('Streaming:', data.data);
-  } else if (data.type === 'streaming_complete') {
-    console.log('Streaming complete');
-  }
-});
-
-// Send a chat message (will wait 15 seconds for response)
+// Send a chat message (proxied to copilot service)
 const response = await fetch('http://localhost:3000/chat', {
   method: 'POST',
   headers: {
@@ -140,48 +108,46 @@ const response = await fetch('http://localhost:3000/chat', {
 });
 
 const result = await response.json();
-console.log('Final response:', result);
+console.log('Response from copilot:', result);
 ```
 
-### Using Python (requests + websocket-client)
+### Using Python (requests)
 
 ```python
 import requests
-import websocket
-import json
 
-# Connect to WebSocket for streaming
-ws = websocket.WebSocket()
-ws.connect("ws://localhost:3000")
-
-# Listen for streaming data
-def on_message(ws, message):
-    data = json.loads(message)
-    if data.get('type') == 'in_progress':
-        print(f"Streaming: {data['data']}")
-    elif data.get('type') == 'streaming_complete':
-        print("Streaming complete")
-
-ws.on_message = on_message
-
-# Send a chat message (will wait 15 seconds for response)
+# Send a chat message (proxied to copilot service)
 response = requests.post('http://localhost:3000/chat', json={
     'message': 'Hello from Python!',
     'userId': 'user456'
 })
 
-print('Final response:', response.json())
+print('Response from copilot:', response.json())
 ```
 
 ## Error Handling
 
 The service includes comprehensive error handling:
 
-- **400 Bad Request**: Missing required fields
 - **404 Not Found**: Invalid endpoints
-- **500 Internal Server Error**: Server errors
+- **500 Internal Server Error**: Server errors or copilot service connection failures
 
 All error responses include an `error` field with a description.
+
+## Configuration
+
+### Copilot Service
+
+The server expects a copilot service to be running at:
+- **URL**: `https://127.0.0.1:8443/copilot?chunked=true`
+- **Method**: POST
+- **Content-Type**: application/json
+
+The server will forward all requests to this endpoint and return the response directly.
+
+### Environment Variables
+
+- `PORT` - Server port (default: 3000)
 
 ## Development
 
@@ -200,18 +166,31 @@ All error responses include an `error` field with a description.
 - `npm run dev` - Start the server in development mode with auto-restart
 - `npm test` - Run tests (not implemented yet)
 
-### Environment Variables
-
-- `PORT` - Server port (default: 3000)
-
 ## Dependencies
 
 - **express** - Web framework
 - **cors** - Cross-origin resource sharing
 - **helmet** - Security headers
 - **morgan** - HTTP request logger
-- **socket.io** - WebSocket support for real-time streaming
 - **nodemon** - Development auto-restart (dev dependency)
+
+## Troubleshooting
+
+### Socket.IO Connection Errors
+
+If you see repeated Socket.IO connection attempts in the server logs like:
+```
+GET /socket.io/?EIO=4&transport=websocket HTTP/1.1" 404
+```
+
+This is normal behavior. The server is designed as a simple HTTP reverse proxy and does not support WebSocket connections. Any client attempting to connect via Socket.IO will receive a proper 404 JSON response. These errors do not affect the server's functionality.
+
+### Copilot Service Connection
+
+If the `/chat` endpoint returns a 500 error, ensure that:
+1. Your copilot service is running on `https://127.0.0.1:8443`
+2. The service accepts POST requests at `/copilot?chunked=true`
+3. The service is configured to accept JSON content
 
 ## License
 

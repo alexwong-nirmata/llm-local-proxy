@@ -53,7 +53,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.socket.io"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
@@ -96,7 +96,7 @@ app.use('*', (req, res) => {
     error: 'Endpoint not found',
     availableEndpoints: {
       'GET /health': 'Health check',
-      'POST /chat': 'Send a chat message (simulates LLM with websocket streaming)'
+      'POST /chat': 'Send a chat message (proxies to copilot service)'
     }
   });
 });
