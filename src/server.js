@@ -18,7 +18,13 @@ function proxyToCopilot(req, res) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData)
+      'Content-Length': Buffer.byteLength(postData),
+      // Forward Authorization header if present
+      ...(req.headers.authorization && { 'Authorization': req.headers.authorization }),
+      // Forward other headers you might need
+      ...(req.headers['user-agent'] && { 'User-Agent': req.headers['user-agent'] }),
+      ...(req.headers['accept'] && { 'Accept': req.headers['accept'] }),
+      ...(req.headers['accept-language'] && { 'Accept-Language': req.headers['accept-language'] })
     },
     rejectUnauthorized: false // This is equivalent to -k flag in curl
   };
@@ -80,6 +86,17 @@ app.get('/health', (req, res) => {
 
 // Chat endpoint - reverse proxy to copilot
 app.post('/chat', (req, res) => {
+  // Log the incoming request
+  console.log('Proxying request to copilot:', {
+    body: req.body,
+    timestamp: new Date().toISOString()
+  });
+
+  // Proxy the request directly to copilot
+  proxyToCopilot(req, res);
+});
+
+app.post('/copilot', (req, res) => {
   // Log the incoming request
   console.log('Proxying request to copilot:', {
     body: req.body,
