@@ -14,7 +14,7 @@ function proxyToCopilot(req, res) {
   const options = {
     hostname: '127.0.0.1',
     port: 8443,
-    path: '/copilot?chunked=true',
+    path: `/copilot${req.query.chunked ? '?chunked=true' : ''}`,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
